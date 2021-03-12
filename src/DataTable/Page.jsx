@@ -1,33 +1,30 @@
-import React from 'react'
+import React, { useCallback, useMemo } from 'react'
 
-const Page = (props) => {
-  const { pageNumber, currentPageNumber, onChange } = props
-
-  const isActivePage = () => {
-    return currentPageNumber == pageNumber
-  }
-
-  const renderedPageNumber = () => {
-    return pageNumber + 1
-  }
-
-  const click = (event) => {
+const Page = React.memo(({
+  active,
+  pageNumber,
+  onChange
+}) => {
+  const handleClick = useCallback((event) => {
     event.preventDefault()
     onChange(pageNumber)
-  }
+  }, [onChange, pageNumber])
 
-  if (isActivePage()) {
-    return(
-      <li className="page-item mr-1">
-        <button className="page-link button-outline" onClick={click} >{renderedPageNumber()}</button>
-      </li>
-    )
-  }
+  const actualPageNumber = useMemo(
+    () => pageNumber + 1, 
+    [pageNumber]
+  )
+
   return(
     <li className="page-item mr-1">
-      <button className="page-link" onClick={click} >{renderedPageNumber()}</button>
+      <button 
+        className={`"page-link ${active ? 'button-outline' : ''}"`} 
+        onClick={handleClick}
+      >
+        {actualPageNumber}
+      </button>
     </li>
   )
-}
+})
 
 export default Page
