@@ -1,59 +1,106 @@
-import React, { useState } from 'react'
+import React, { useState, useCallback, useMemo } from 'react'
 
 import Pagination from './Pagination'
 import Row from './Row'
 import Search from './Search'
 
-const DataTable = ({ initialRows, rowsPerPage = 40 }) => {
-  const [rows, setRows] = useState(initialRows);
+const DataTable = ({ 
+  data = [],
+  columns = [],
+  options = {
+    keyField: undefined,
+    rowsPerPage: 40,
+    search: false,
+  },
+  components = {},
+}) => {
+  const [rows, setRows] = useState(data);
   const [currentPageNumber, setCurrentPageNumber] = useState(0);
 
-  const calculateTotalNumberOfPages =  (rows) => {
-    if (rowsPerPage === 0) return 0
-    return Math.ceil(rows.length / rowsPerPage)
-  }
+  const calculateTotalNumberOfPages = useCallback((rows) => {
+    if (options.rowsPerPage === 0) return 0
+    return Math.ceil(rows.length / options.rowsPerPage)
+  }, [options.rowsPerPage, rows.length])
 
-  const [totalNumberOfPages, setTotalNumberOfPages] = useState(calculateTotalNumberOfPages(initialRows));
+  const [totalNumberOfPages, setTotalNumberOfPages] = useState(calculateTotalNumberOfPages(data));
 
-  const search = (event) => {
+  const filterByValue = useCallback((value, rowData) => Object.keys(rowData).some(
+    (propKey) => {
+      const target = columns.find(col => col.field === propKey);
+
+      const strictlySearchable = !(target && (typeof target.searchable === 'boolean' && !target.searchable));
+
+      const canCompare = target || !columns.length;
+
+      return strictlySearchable
+        ? canCompare
+          ? rowData[propKey].toString().toLowerCase().search(value) > -1
+          : false
+        : false;
+    }), 
+  [columns])
+
+  const handleSearch = useCallback((event) => {
     const text = event.target.value
-    let rowsFound = initialRows
 
-    if (text) {
-      rowsFound = initialRows.filter((row) =>
-        row.name1.toLowerCase().search(text.toLowerCase()) > -1 ||
-        (row.email && row.email.toLowerCase().search(text.toLowerCase()) > -1)
-      )
-    }
+    const newState = !text 
+      ? [...data] 
+      : [...data.filter((row) => filterByValue(text, row))]
 
-    setRows(rowsFound)
+    setRows(newState)
     setCurrentPageNumber(0)
-    setTotalNumberOfPages(calculateTotalNumberOfPages(rowsFound))
-  }
+    setTotalNumberOfPages(calculateTotalNumberOfPages(newState))
+  }, [columns, data])
 
-  const changeToPageNumber = (pageNumber) => {
+  const handlePageChange = useCallback((pageNumber) => {
     setCurrentPageNumber(pageNumber)
-  }
+  }, [])
 
-  const rowsInPageNumber = (pageNumber) => {
-    const startIndex = pageNumber * rowsPerPage
-    return [startIndex, startIndex + rowsPerPage]
-  }
+  const rowsInPageNumber = React.useCallback((pageNumber) => {
+    const startIndex = pageNumber * options.rowsPerPage
+    return [startIndex, startIndex + options.rowsPerPage]
+  }, [options.rowsPerPage])
 
-  const rowsToRender = rows.map(row => <Row key={row.per_id} row={row} />).slice(...rowsInPageNumber(currentPageNumber))
+  const rowsToRender = useMemo(() => rows.slice(...rowsInPageNumber(currentPageNumber)), [
+    currentPageNumber,
+    rows
+  ])
+
+  const RowNode = useCallback(
+    typeof components.Row === 'function' 
+      ? components.Row
+      : Row,
+    [components])
+
+  const getKeyField = useCallback(
+    (rowData, index) => typeof options.keyField === 'undefined'
+      ? index
+      : rowData[options.keyField], 
+    [options])
 
   return(
     <div>
-      <Search onSearch={search.bind(this)} />
+      {options.search && (
+        <Search onSearch={handleSearch} />
+      )}
       <table>
         <tbody>
-          { rowsToRender }
+          { rowsToRender.map(
+            ( rowData, index ) => (
+              <RowNode 
+                key={getKeyField(rowData, index)}
+                rowData={rowData}
+                columns={columns}
+              />
+            )
+          )}
         </tbody>
       </table>
       <Pagination
         currentPageNumber={currentPageNumber}
         totalNumberOfPages={totalNumberOfPages}
-        onChange={changeToPageNumber.bind(this)} />
+        onChange={handlePageChange} 
+      />
     </div>
   )
 }

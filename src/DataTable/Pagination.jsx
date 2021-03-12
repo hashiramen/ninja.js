@@ -1,27 +1,30 @@
-import React from 'react'
+import React, { useMemo } from 'react'
 
 import Page from './Page'
 
-const Pagination = ({ currentPageNumber, totalNumberOfPages, onChange }) => {
-  const pages =
-    Array
+const Pagination = React.memo(({ 
+  currentPageNumber, 
+  totalNumberOfPages, 
+  onChange 
+}) => {
+  const pages = useMemo(
+    () => Array
       .from(Array(totalNumberOfPages).keys())
-      .map(pageNumber => {
-        return <Page
+      .map(pageNumber => (
+        <Page
           key={pageNumber}
-          currentPageNumber={currentPageNumber}
+          active={pageNumber == currentPageNumber}
           pageNumber={pageNumber}
-          onChange={onChange} />
-      })
+          onChange={onChange} 
+        />
+      )),
+    [onChange, currentPageNumber])
 
-  if (pages.length <= 1) {
-    return null
-  }
-  return(
+  return !totalNumberOfPages ? null : (
     <ul className="pagination">
       {pages}
     </ul>
   )
-}
+})
 
 export default Pagination
