@@ -25,9 +25,19 @@ const DataTable = ({
   const [totalNumberOfPages, setTotalNumberOfPages] = useState(calculateTotalNumberOfPages(data));
 
   const filterByValue = useCallback((value, rowData) => Object.keys(rowData).some(
-    (propKey) => (columns.some(col => col.field === propKey && (typeof col.searchable === 'boolean' && !col.searchable)))
-      ? false
-      : rowData[propKey].toString().toLowerCase().search(value) > -1), 
+    (propKey) => {
+      const target = columns.find(col => col.field === propKey);
+
+      const strictlySearchable = !(target && (typeof target.searchable === 'boolean' && !target.searchable));
+
+      const canCompare = target || !columns.length;
+
+      return strictlySearchable
+        ? canCompare
+          ? rowData[propKey].toString().toLowerCase().search(value) > -1
+          : false
+        : false;
+    }), 
   [columns])
 
   const handleSearch = useCallback((event) => {
